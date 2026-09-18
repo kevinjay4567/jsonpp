@@ -188,26 +188,6 @@ int main() {
     letter = file.get();
   }
 
-  /*std::string content;
-  std::map<std::string, std::any> m{};
-
-  while (std::getline(file, content)) {
-    if (content.find('"') == std::string::npos) {
-      continue;
-    }
-
-    m[get_key(content)] = get_value(content);
-  }
-
-  file.close();
-
-  for (const auto &[key, value] : m) {
-    std::cout << "KEY: [" << key << "]\n";
-    std::cout << "TYPE: " << value.type().name() << "\n";
-  }
-
-  std::cout << std::any_cast<double>(m["age"]) << std::endl;*/
-
   if (tokens.size() > 0) {
     perror("formato incorrecto");
     exit(-1);
