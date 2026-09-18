@@ -1,6 +1,5 @@
 #include <any>
 #include <cctype>
-#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -21,7 +20,7 @@ struct json_value {
   json_values value_type;
 };
 
-double extract_numeric_value(std::string in, size_t &cur) {
+double extract_numeric_value(std::string_view in, int &cur) {
   std::string result;
   int i = 0;
 
@@ -44,67 +43,121 @@ double extract_numeric_value(std::string in, size_t &cur) {
   return std::stod(result);
 }
 
-std::string get_key(std::string_view in) {
-  int index = in.find(":");
-  std::string result;
-  std::string clean_result;
+int get_key(std::string_view in) {
+  bool open = false;
 
-  result.append(in, 0, index);
+  std::cout << "key: ";
+  for (int i = 0; i < in.length(); i++) {
+    char c = in[i];
 
-  for (char c : result) {
-    if (c == ' ' || c == '\n' || c == '"') {
+    if (c == ' ' || c == '\n') {
       continue;
     }
 
-    clean_result.push_back(c);
+    if (c == '"') {
+      if (open) {
+        std::cout << '\n';
+        return i;
+      } else {
+        open = true;
+        continue;
+      }
+    }
+
+    std::cout << c;
   }
 
-  return clean_result;
+  perror("formato de clave invalido");
+  exit(1);
 }
 
-std::any get_value(std::string_view in) {
-  size_t index = in.find(":");
-
-  if (index == std::string::npos) {
-    perror("Error de formato: ':'  missing");
-  }
-
-  std::string result;
-  std::string clean_result;
-
-  result.append(in, index + 1);
-
-  for (size_t i = 0; i < result.length(); i++) {
-    char c = result[i];
+int get_value(std::string_view in) {
+  for (int i = 0; i < in.length(); i++) {
+    char c = in[i];
 
     if (c == ' ' || c == '\n') {
       continue;
     }
 
     if (std::isdigit(c) || c == '-') {
-      return extract_numeric_value(result.substr(i), i);
+      std::cout << "value: " << extract_numeric_value(&in[i], i) << std::endl;
+      return i;
     }
 
     if (c == '"') {
       std::cout << "String!" << std::endl;
     }
-
-    if (c == '[') {
-      std::cout << "Array!" << std::endl;
-    }
-
-    if (c == '{') {
-      std::cout << "Object!" << std::endl;
-    }
-
-    clean_result.push_back(c);
   }
 
-  return std::stoi(clean_result);
+  perror("formato de clave invalido");
+  exit(1);
+}
+
+int extract_object(std::string_view in) {
+  std::cout << in << std::endl;
+
+  bool is_open = false;
+  bool in_key = true;
+
+  for (int i = 0; i < in.length(); i++) {
+    char c = in[i];
+
+    if (c == '{' && !is_open) {
+      std::cout << "init object" << std::endl;
+      is_open = true;
+      continue;
+    }
+
+    if (c == '{' && is_open) {
+      std::cout << "new object" << std::endl;
+      i += extract_object(&in[i]);
+      in_key = true;
+      continue;
+    }
+
+    if (c == '"' && in_key) {
+      std::cout << "extract key" << std::endl;
+      in_key = false;
+      i += get_key(&in[i]);
+      continue;
+    }
+
+    if (c == ':' && in_key) {
+      perror("error de formato");
+      exit(1);
+    }
+
+    if (c == ':' && !in_key) {
+      std::cout << "separator ':'" << std::endl;
+      continue;
+    }
+
+    if ((c == '"' || c == '-' || isdigit(c)) && !in_key) {
+      std::cout << "extract value" << std::endl;
+      i += get_value(&in[i]);
+      in_key = true;
+      continue;
+    }
+
+    if (c == '}') {
+      std::cout << "object finalized" << std::endl;
+      is_open = false;
+      return i;
+    }
+  }
+
+  if (is_open) {
+    perror("error de formato");
+    exit(1);
+  }
+
+  return -1;
 }
 
 int main() {
   std::fstream file("input.json");
+
+  extract_object("{\"key\": -10, \"key\": {}}");
 
   if (!file.is_open()) {
     return 0;
