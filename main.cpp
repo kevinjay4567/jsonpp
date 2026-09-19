@@ -3,11 +3,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <ios>
 #include <iostream>
 #include <ostream>
-#include <stack>
 #include <string>
 #include <string_view>
+
+class Hello {
+public:
+  std::string hello;
+};
 
 enum json_values { NUMBER, STRING, NOLL, ARRAY, OBJECT };
 
@@ -19,6 +24,26 @@ struct json_value {
   std::any value;
   json_values value_type;
 };
+
+std::string extract_string_value(std::string_view in, int &cur) {
+  std::string result;
+  int i = 1;
+
+  while (in[i] != EOF) {
+    char c = in[i];
+
+    if (c == '"') {
+      cur += i;
+      return result;
+    }
+
+    result.push_back(c);
+    i++;
+  }
+
+  perror("formato incorrecto");
+  exit(1);
+}
 
 double extract_numeric_value(std::string_view in, int &cur) {
   std::string result;
@@ -81,12 +106,25 @@ int get_value(std::string_view in) {
 
     if (std::isdigit(c) || c == '-') {
       std::cout << "value: " << extract_numeric_value(&in[i], i) << std::endl;
-      return i;
     }
 
     if (c == '"') {
-      std::cout << "String!" << std::endl;
+      std::cout << "value: " << extract_string_value(&in[i], i) << std::endl;
     }
+
+    if (c == 'n') {
+      std::cout << "Null!" << std::endl;
+    }
+
+    if (c == 't') {
+      std::cout << "True" << std::endl;
+    }
+
+    if (c == 'f') {
+      std::cout << "False" << std::endl;
+    }
+
+    return i;
   }
 
   perror("formato de clave invalido");
@@ -94,8 +132,6 @@ int get_value(std::string_view in) {
 }
 
 int extract_object(std::string_view in) {
-  std::cout << in << std::endl;
-
   bool is_open = false;
   bool in_key = true;
 
@@ -155,95 +191,23 @@ int extract_object(std::string_view in) {
 }
 
 int main() {
-  std::fstream file("input.json");
+  std::fstream stream("input.json");
 
-  extract_object("{\"key\": -10, \"key\": {}}");
-
-  if (!file.is_open()) {
-    return 0;
+  if (!stream.is_open()) {
+    perror("error al abrir el archivo\n");
+    exit(0);
   }
 
-  char letter = file.get();
-  std::stack<char> tokens;
+  std::streamsize size = stream.rdbuf()->in_avail();
+  char content[size + 1];
+  stream.read(content, size);
+  content[size] = '\0';
 
-  while (!file.eof()) {
-    if (std::isspace(letter) || letter == '\t' || letter == '\n') {
-      letter = file.get();
-      continue;
-    }
+  extract_object(content);
 
-    if (letter == '{') {
-      tokens.push(letter);
-    }
+  /** Propuesta de api
+  Hello test = json.map<Hello>();
+  std::cout << test.hello << std::endl;*/
 
-    if (letter == '}') {
-      if (tokens.size() == 0 || tokens.top() != '{') {
-        perror("error formato: llave de apertura faltante '{'");
-        exit(-1);
-      } else {
-        tokens.pop();
-      }
-    }
-
-    if (letter == '"') {
-
-      if (tokens.top() == '{') {
-        tokens.push(letter);
-      } else if (tokens.top() == ',') {
-        tokens.pop();
-        tokens.push(letter);
-      } else {
-        perror("error formato: token '\"' fuera de lugar");
-        exit(-1);
-      }
-
-      letter = file.get();
-      while (!file.eof()) {
-
-        if (letter == '"') {
-          tokens.pop();
-          break;
-        }
-
-        std::cout << letter << std::endl;
-        letter = file.get();
-      }
-
-      if (file.peek() == ':') {
-        tokens.push(file.get());
-        letter = file.get();
-      }
-    }
-
-    if (letter == '-' || isdigit(letter)) {
-      if (tokens.top() == ':') {
-
-        std::cout << "Valor Numerico: ";
-        while (!file.eof()) {
-
-          if (letter == ',') {
-            tokens.pop();
-            break;
-          }
-
-          if (letter == ']' || letter == '}') {
-            tokens.pop();
-            tokens.pop();
-            break;
-          }
-
-          std::cout << letter;
-          letter = file.get();
-        }
-      }
-    }
-
-    letter = file.get();
-  }
-
-  if (tokens.size() > 0) {
-    perror("formato incorrecto");
-    exit(-1);
-  }
   return 0;
 }
