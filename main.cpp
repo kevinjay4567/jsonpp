@@ -20,6 +20,8 @@ struct json_value {
   json_values value_type;
 };
 
+int extract_array(std::string_view in, int &cur);
+
 std::string extract_string_value(std::string_view in, int &cur) {
   std::string result;
   int i = 1;
@@ -100,6 +102,11 @@ int get_value(std::string_view in) {
       continue;
     }
 
+    if (c == '[') {
+      std::cout << "array: " << std::endl;
+      extract_array(&in[i], i);
+    }
+
     if (std::isdigit(c) || c == '-') {
       std::cout << "value: " << extract_numeric_value(&in[i], i) << std::endl;
     }
@@ -164,7 +171,7 @@ int extract_object(std::string_view in) {
       continue;
     }
 
-    if ((c == '"' || c == '-' || isdigit(c)) && !in_key) {
+    if ((c == '"' || c == '-' || isdigit(c) || c == '[') && !in_key) {
       std::cout << "extract value" << std::endl;
       i += get_value(&in[i]);
       in_key = true;
@@ -186,7 +193,7 @@ int extract_object(std::string_view in) {
   return -1;
 }
 
-int extract_array(std::string_view in) {
+int extract_array(std::string_view in, int &cur) {
   bool is_open = false;
   bool comma = false;
 
@@ -201,7 +208,7 @@ int extract_array(std::string_view in) {
 
     if (c == '[' && is_open) {
       std::cout << "new array" << std::endl;
-      i += extract_array(&in[i]);
+      i += extract_array(&in[i], i);
       continue;
     }
 
@@ -212,6 +219,7 @@ int extract_array(std::string_view in) {
     if ((c == '"' || c == '-' || isdigit(c))) {
       std::cout << "extract value" << std::endl;
       i += get_value(&in[i]);
+      comma = false;
       continue;
     }
 
@@ -219,7 +227,27 @@ int extract_array(std::string_view in) {
       comma = true;
       continue;
     }
+
+    if (c == ']') {
+
+      if (comma) {
+        perror("error de formato");
+        exit(1);
+      }
+
+      std::cout << "array finalized" << std::endl;
+      is_open = false;
+      cur += i;
+      return i;
+    }
   }
+
+  if (is_open) {
+    perror("error de formato");
+    exit(1);
+  }
+
+  return -1;
 }
 
 int main() {
