@@ -1,4 +1,4 @@
 {
-  "age": 285000,
-  "hello": -3
+  "message": "user created successfully",
+  "data": ["a", "b"]
 }

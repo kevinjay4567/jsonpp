@@ -9,11 +9,6 @@
 #include <string>
 #include <string_view>
 
-class Hello {
-public:
-  std::string hello;
-};
-
 enum json_values { NUMBER, STRING, NOLL, ARRAY, OBJECT };
 
 struct json_key {
@@ -48,13 +43,14 @@ std::string extract_string_value(std::string_view in, int &cur) {
 double extract_numeric_value(std::string_view in, int &cur) {
   std::string result;
   int i = 0;
+  char next_char = in[i + 1];
 
   if (in[i] == '-') {
     result.push_back('-');
     i++;
   }
 
-  while (std::isdigit(in[i]) || in[i] == '.') {
+  while (std::isdigit(in[i]) || in[i] == '.' || in[i] == 'e' || in[i] == '-') {
     if (in[i] == '.' && !std::isdigit(in[i + 1])) {
       perror("formato incorrecto: ..");
       exit(0);
@@ -188,6 +184,42 @@ int extract_object(std::string_view in) {
   }
 
   return -1;
+}
+
+int extract_array(std::string_view in) {
+  bool is_open = false;
+  bool comma = false;
+
+  for (int i = 0; i < in.length(); i++) {
+    char c = in[i];
+
+    if (c == '[' && !is_open) {
+      std::cout << "init array" << std::endl;
+      is_open = true;
+      continue;
+    }
+
+    if (c == '[' && is_open) {
+      std::cout << "new array" << std::endl;
+      i += extract_array(&in[i]);
+      continue;
+    }
+
+    if (std::isspace(c) || c == '\t' || c == '\n') {
+      continue;
+    }
+
+    if ((c == '"' || c == '-' || isdigit(c))) {
+      std::cout << "extract value" << std::endl;
+      i += get_value(&in[i]);
+      continue;
+    }
+
+    if (c == ',') {
+      comma = true;
+      continue;
+    }
+  }
 }
 
 int main() {
